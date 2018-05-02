@@ -56,12 +56,6 @@ def process_config(conf_file):
 		if section == 'Network':
 			for option in config.options(section):
 				params[option] = eval(config.get(section, option))
-		if section == 'Train':
-			for option in config.options(section):
-				params[option] = eval(config.get(section, option))
-		if section == 'Validation':
-			for option in config.options(section):
-				params[option] = eval(config.get(section, option))
 		if section == 'Saver':
 			for option in config.options(section):
 				params[option] = eval(config.get(section, option))
@@ -83,7 +77,19 @@ class Inference():
 		pltSkeleton : Plot skeleton on image
 		runVideoFilter : SURPRISE !!!
 	"""
-	def __init__(self, config_file = 'config.cfg', model = 'cloth_hourglass_train_200', yoloModel = 'YOLO_small.ckpt'):
+	def __init__(self, config_file = 'config.cfg',
+				 model = 'cloth_hourglass_train_200',
+				 yoloModel = 'YOLO_small.ckpt',
+				 nFeat=256,
+				 nStack=4,
+				 nModules=1,
+				 nLow=4,
+				 batch_size=8,
+				 drop_rate=0.2,
+				 lear_rate=0.0005,
+				 dacay=0.96,
+				 dacay_step=2000,
+				 w_loss=True):
 		""" Initilize the Predictor
 		Args:
 			config_file 	 	: *.cfg file with model's parameters
@@ -94,7 +100,17 @@ class Inference():
 
 		t = time()
 		params = process_config(config_file)
-		self.predict = PredictProcessor(params)
+		self.predict = PredictProcessor(params,
+										nFeat=nFeat,
+										nStack=nStack,
+										nModules=nModules,
+										nLow=nLow,
+										batch_size=batch_size,
+										drop_rate=drop_rate,
+										lear_rate=lear_rate,
+										dacay=dacay,
+										dacay_step=dacay_step,
+										w_loss=w_loss)
 		self.predict.color_palette()
 		# self.predict.LINKS_JOINTS()
 		self.predict.model_init()

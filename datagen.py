@@ -84,7 +84,7 @@ class DataGenerator():
 		Generate image/heatmap arrays when needed (Generate arrays while training, increase training time - Need to compute arrays at every iteration) 
 	"""
 
-    def __init__(self, train_data_file=None, remove_joints=None):
+    def __init__(self, train_data_file=None, warmup_data_file=None, remove_joints=None):
         """ Initializer
 		Args:
 			joints_name			: List of joints condsidered
@@ -96,15 +96,16 @@ class DataGenerator():
         # 从csv文件读取jpg路径
         if train_data_file.endswith('csv'):
             self.train_data_file = train_data_file
-            self._read_img_dir_from_csv()
+            self.warmup_data_file = warmup_data_file
 
     # --------------------Generator Initialization Methods ---------------------
     def _get_joints_name(self, joints_name=None, joints_num=None):
         self.joints_list = joints_name
         self.joints_num = joints_num
 
-    def _get_img_dir(self, img_dir=None):
+    def _get_img_dir(self, img_dir=None, warmup_dir=None):
         self.img_dir = img_dir
+        self.warup_dir = warmup_dir
 
     def _read_img_dir_from_csv(self):
         """ 从CSV文件读取jpg，self.images=['Images/blouse/1.jpg', 'Images/blouse/2.jpg'...]
@@ -122,6 +123,13 @@ class DataGenerator():
         self.images_skirt = []
         self.images_trousers = []
 
+        # save file path
+        self.path_blouse = []
+        self.path_dress = []
+        self.path_outwear = []
+        self.path_skirt = []
+        self.path_trousers = []
+
         # save coordinates (x_y_1)
         self.coordinates_blouse = []
         self.coordinates_dress = []
@@ -134,34 +142,79 @@ class DataGenerator():
             for row in reader:
                 if row[1] == 'blouse':
                     self.images_blouse.append(row[0])
+                    self.path_blouse.append(self.img_dir + row[0])
                     coordinates = []
                     for i in blouse:
                         coordinates.append(row[i + 2])
                     self.coordinates_blouse.append(coordinates)
                 elif row[1] == 'dress':
                     self.images_dress.append(row[0])
+                    self.path_dress.append(self.img_dir + row[0])
                     coordinates = []
                     for i in dress:
                         coordinates.append(row[i + 2])
                     self.coordinates_dress.append(coordinates)
                 elif row[1] == 'outwear':
                     self.images_outwear.append(row[0])
+                    self.path_outwear.append(self.img_dir + row[0])
                     coordinates = []
                     for i in outwear:
                         coordinates.append(row[i + 2])
                     self.coordinates_outwear.append(coordinates)
                 elif row[1] == 'skirt':
                     self.images_skirt.append(row[0])
+                    self.path_skirt.append(self.img_dir + row[0])
                     coordinates = []
                     for i in skirt:
                         coordinates.append(row[i + 2])
                     self.coordinates_skirt.append(coordinates)
                 elif row[1] == 'trousers':
                     self.images_trousers.append(row[0])
+                    self.path_trousers.append(self.img_dir + row[0])
                     coordinates = []
                     for i in trousers:
                         coordinates.append(row[i + 2])
                     self.coordinates_trousers.append(coordinates)
+
+        if self.warmup_data_file is not None:
+            with open(self.warmup_data_file) as csv_file:
+                reader = csv.reader(csv_file)
+                for row in reader:
+                    if row[1] == 'blouse':
+                        self.images_blouse.append(row[0])
+                        self.path_blouse.append(self.warup_dir + row[0])
+                        coordinates = []
+                        for i in blouse:
+                            coordinates.append(row[i + 2])
+                        self.coordinates_blouse.append(coordinates)
+                    elif row[1] == 'dress':
+                        self.images_dress.append(row[0])
+                        self.path_dress.append(self.warup_dir + row[0])
+                        coordinates = []
+                        for i in dress:
+                            coordinates.append(row[i + 2])
+                        self.coordinates_dress.append(coordinates)
+                    elif row[1] == 'outwear':
+                        self.images_outwear.append(row[0])
+                        self.path_outwear.append(self.warup_dir + row[0])
+                        coordinates = []
+                        for i in outwear:
+                            coordinates.append(row[i + 2])
+                        self.coordinates_outwear.append(coordinates)
+                    elif row[1] == 'skirt':
+                        self.images_skirt.append(row[0])
+                        self.path_skirt.append(self.warup_dir + row[0])
+                        coordinates = []
+                        for i in skirt:
+                            coordinates.append(row[i + 2])
+                        self.coordinates_skirt.append(coordinates)
+                    elif row[1] == 'trousers':
+                        self.images_trousers.append(row[0])
+                        self.path_trousers.append(self.warup_dir + row[0])
+                        coordinates = []
+                        for i in trousers:
+                            coordinates.append(row[i + 2])
+                        self.coordinates_trousers.append(coordinates)
 
     def _reduce_joints(self, joints):
         """ Select Joints of interest from self.weightJ
@@ -188,18 +241,23 @@ class DataGenerator():
 
         if self.category == 'blouse':
             images = self.images_blouse
+            path = self.path_blouse
             coordinates = self.coordinates_blouse
         elif self.category == 'dress':
             images = self.images_dress
+            path = self.path_dress
             coordinates = self.coordinates_dress
         elif self.category == 'outwear':
             images = self.images_outwear
+            path = self.path_outwear
             coordinates = self.coordinates_outwear
         elif self.category == 'skirt':
             images = self.images_skirt
+            path = self.path_skirt
             coordinates = self.coordinates_skirt
         elif self.category == 'trousers':
             images = self.images_trousers
+            path = self.path_trousers
             coordinates = self.coordinates_trousers
         else:
             print('_create_train_table error: category error')
@@ -208,6 +266,7 @@ class DataGenerator():
         for i in range(len(images)):
             name = images[i]
             x_y_visi = coordinates[i]
+            full_path = path[i]
             w = []
             x = []
             y = []
@@ -225,7 +284,7 @@ class DataGenerator():
                 print('joints number error')
                 exit(-1)
 
-            self.data_dict[name] = {'joints': joints, 'weights': w}
+            self.data_dict[name] = {'joints': joints, 'weights': w, 'path': full_path}
             self.train_table.append(name)
 
     def _randomize(self):
@@ -338,7 +397,7 @@ class DataGenerator():
         num_joints = joints.shape[0]
         hm = np.zeros((height, width, num_joints), dtype=np.float32)
         for i in range(num_joints):
-            if not (np.array_equal(joints[i], [-1, -1])) and weight[i] == 1:
+            if weight[i] == 1:
                 s = int(np.sqrt(maxlenght) * maxlenght * 10 / 4096) + 2
                 hm[:, :, i] = self._makeGaussian(height, width, sigma=s, center=(joints[i, 0], joints[i, 1]))
             else:
@@ -424,7 +483,7 @@ class DataGenerator():
         """ Convert Absolute joint coordinates to crop box relative joint coordinates
 		(Used to compute Heat Maps)
 		Args:
-			box			: Bounding Box 
+			box		: Bounding Box
 			padding	: Padding Added to the original Image
 			to_size	: Heat Map wanted Size
 		"""
@@ -481,7 +540,7 @@ class DataGenerator():
             for i, name in enumerate(files):
                 if name[:-1] in images:
                     try:
-                        img = self.open_img(name)
+                        img = self.open_img(self.data_dict[name]['path'])
                         joints = self.data_dict[name]['joints']
                         # box = self.data_dict[name]['box']
                         weight = self.data_dict[name]['weights']
@@ -543,7 +602,7 @@ class DataGenerator():
                     # box = self.data_dict[name]['box']
                     weight = np.asarray(self.data_dict[name]['weights'])
                     train_weights[i] = weight
-                    img = self.open_img(name)
+                    img = self.open_img(self.data_dict[name]['path'])
                     # print('open img done')
                     padd, cbox = self._crop_data(img.shape[0], img.shape[1], joints, boxp=0.2)
                     # print('_crop_data done')
@@ -557,7 +616,7 @@ class DataGenerator():
                     img, hm = self._augment(img, hm)
                     # print('_augment done')
                     hm = np.expand_dims(hm, axis=0)
-                    hm = np.repeat(hm, stacks, axis=0)
+                    hm = np.repeat(hm, stacks, axis=0)  # 重复stacks次
                     if normalize:
                         train_img[i] = img.astype(np.float32) / 255
                     else:
@@ -588,7 +647,7 @@ class DataGenerator():
 		"""
         # if name[-1] in self.letter:
         # 	name = name[:-1]
-        img = cv2.imread(os.path.join(self.img_dir, name))
+        img = cv2.imread(name)
         if color == 'RGB':
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             return img
@@ -686,7 +745,7 @@ class DataGenerator():
                 joints = self.data_dict[sample]['joints']
                 # box = self.data_dict[sample]['box']
                 w = self.data_dict[sample]['weights']
-                img = self.open_img(sample)
+                img = self.open_img(self.data_dict[sample]['path'])
                 padd, cbox = self._crop_data(img.shape[0], img.shape[1], joints, boxp=0.2)
                 new_j = self._relative_joints(cbox, padd, joints, to_size=256)
                 joint_full = np.copy(joints)

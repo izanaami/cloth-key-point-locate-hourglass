@@ -56,33 +56,44 @@ class PredictProcessor():
 	"""
 
     # -------------------------INITIALIZATION METHODS---------------------------
-    def __init__(self, config_dict):
+    def __init__(self, config_dict,
+                 nFeat=256,
+                 nStack=4,
+                 nModules=1,
+                 nLow=4,
+                 batch_size=8,
+                 drop_rate=0.2,
+                 lear_rate=0.0005,
+                 dacay=0.96,
+                 dacay_step=2000,
+                 w_loss=True):
         """ Initializer
 		Args:
 			config_dict	: config_dict
 		"""
         self.params = config_dict
-        self.HG = HourglassModel(nFeat=self.params['nfeats'],
-                                 nStack=self.params['nstacks'],
-                                 nModules=self.params['nmodules'],
-                                 nLow=self.params['nlow'],
+        self.HG = HourglassModel(nFeat=nFeat,
+                                 nStack=nStack,
+                                 nModules=nModules,
+                                 nLow=nLow,
                                  outputDim=self.params['num_joints'],
-                                 batch_size=self.params['batch_size'],
-                                 drop_rate=self.params['dropout_rate'],
-                                 lear_rate=self.params['learning_rate'],
-                                 decay=self.params['learning_rate_decay'],
-                                 decay_step=self.params['decay_step'],
+                                 batch_size=batch_size,
+                                 drop_rate=drop_rate,
+                                 lear_rate=lear_rate,
+                                 decay=dacay,
+                                 decay_step=dacay_step,
                                  dataset=None,
                                  training=False,
-                                 w_summary=True,
+                                 w_summary=False,
                                  logdir_test=self.params['log_dir_test'],
                                  logdir_train=self.params['log_dir_test'],
-                                 tiny=self.params['tiny'],
+                                 tiny=False,
                                  modif=False,
                                  name=self.params['name'],
-                                 attention=self.params['mcam'],
-                                 w_loss=self.params['weighted_loss'],
+                                 attention=False,
+                                 w_loss=w_loss,
                                  joints=self.params['joint_list'])
+        self.num_joints = self.params['num_joints']
         self.graph = tf.Graph()
         self.src = 0
         self.cam_res = (480, 640)
@@ -345,8 +356,7 @@ class PredictProcessor():
             if coord == 'hm':
                 return j1, j2
             elif coord == 'img':
-                return j1 * self.params['img_size'] / self.params['hm_size'], j2 * self.params['img_size'] / \
-                       self.params['hm_size']
+                return j1 * 256 / 64, j2 * 256 / 64
             else:
                 print("Error: 'coord' argument different of ['hm','img']")
         else:
@@ -357,7 +367,7 @@ class PredictProcessor():
             if coord == 'hm':
                 return j
             elif coord == 'img':
-                return j * self.params['img_size'] / self.params['hm_size']
+                return j * 256 / 64
             else:
                 print("Error: 'coord' argument different of ['hm','img']")
 
@@ -372,14 +382,14 @@ class PredictProcessor():
             hm = self.HG.Session.run(self.HG.pred_sigmoid, feed_dict={self.HG.img: img})
         else:
             hm = sess.run(self.HG.pred_sigmoid, feed_dict={self.HG.img: img})
-        joints = -1 * np.ones(shape=(self.params['num_joints'], 2))
-        for i in range(self.params['num_joints']):
-            index = np.unravel_index(hm[0, :, :, i].argmax(), (self.params['hm_size'], self.params['hm_size']))
+        joints = -1 * np.ones(shape=(self.num_joints, 2))
+        for i in range(self.num_joints):
+            index = np.unravel_index(hm[0, :, :, i].argmax(), (64, 64))
             if hm[0, index[0], index[1], i] > thresh:
                 if coord == 'hm':
                     joints[i] = np.array(index)
                 elif coord == 'img':
-                    joints[i] = np.array(index) * self.params['img_size'] / self.params['hm_size']
+                    joints[i] = np.array(index) * 256 / 64
         return joints
 
     def batch_pred(self, batch, debug=False):
@@ -467,7 +477,7 @@ class PredictProcessor():
         if norm:
             img_hg = img / 255
         hg = self.HG.Session.run(self.HG.pred_sigmoid, feed_dict={self.HG.img: np.expand_dims(img_hg, axis=0)})
-        j = np.ones(shape=(self.params['num_joints'], 2)) * -1
+        j = np.ones(shape=(self.num_joints, 2)) * -1
         for i in range(len(j)):
             idx = np.unravel_index(hg[0, :, :, i].argmax(), (64, 64))
             if hg[0, idx[0], idx[1], i] > thresh:
@@ -695,7 +705,7 @@ class PredictProcessor():
             img_hg = cv2.cvtColor(img_hg, cv2.COLOR_BGR2RGB)
             hg = self.HG.Session.run(self.HG.pred_sigmoid,
                                      feed_dict={self.HG.img: np.expand_dims(img_hg / 255, axis=0)})
-            j = np.ones(shape=(self.params['num_joints'], 2)) * -1
+            j = np.ones(shape=(self.num_joints, 2)) * -1
             if plt_hm:
                 hm = np.sum(hg[0], axis=2)
                 hm = np.repeat(np.expand_dims(hm, axis=2), 3, axis=2)
@@ -786,9 +796,9 @@ class PredictProcessor():
                 img_person = cv2.resize(img_person, (256, 256))
                 hm = self.HG.Session.run(self.HG.pred_sigmoid,
                                          feed_dict={self.HG.img: np.expand_dims(img_person / 255, axis=0)})
-                j = -1 * np.ones(shape=(self.params['num_joints'], 2))
-                joint = -1 * np.ones(shape=(self.params['num_joints'], 2))
-                for i in range(self.params['num_joints']):
+                j = -1 * np.ones(shape=(self.num_joints, 2))
+                joint = -1 * np.ones(shape=(self.num_joints, 2))
+                for i in range(self.num_joints):
                     idx = np.unravel_index(hm[0, :, :, i].argmax(), (64, 64))
                     if hm[0, idx[0], idx[1], i] > j_thresh:
                         j[i] = idx
@@ -850,9 +860,9 @@ class PredictProcessor():
         img_person = cv2.resize(img_person, (256, 256))
         hm = self.HG.Session.run(self.HG.pred_sigmoid,
                                  feed_dict={self.HG.img: np.expand_dims(img_person / 255, axis=0)})
-        j = -1 * np.ones(shape=(self.params['num_joints'], 2))
-        joint = -1 * np.ones(shape=(self.params['num_joints'], 2))
-        for i in range(self.params['num_joints']):
+        j = -1 * np.ones(shape=(self.num_joints, 2))
+        joint = -1 * np.ones(shape=(self.num_joints, 2))
+        for i in range(self.num_joints):
             idx = np.unravel_index(hm[0, :, :, i].argmax(), (64, 64))
             if hm[0, idx[0], idx[1], i] > j_thresh:
                 j[i] = idx
@@ -996,9 +1006,9 @@ class PredictProcessor():
                 img_person = cv2.resize(img_person, (256, 256))
                 hm = self.HG.Session.run(self.HG.pred_sigmoid,
                                          feed_dict={self.HG.img: np.expand_dims(img_person / 255, axis=0)})
-                j = -1 * np.ones(shape=(self.params['num_joints'], 2))
-                joint = -1 * np.ones(shape=(self.params['num_joints'], 2))
-                for i in range(self.params['num_joints']):
+                j = -1 * np.ones(shape=(self.num_joints, 2))
+                joint = -1 * np.ones(shape=(self.num_joints, 2))
+                for i in range(self.num_joints):
                     idx = np.unravel_index(hm[0, :, :, i].argmax(), (64, 64))
                     if hm[0, idx[0], idx[1], i] > j_thresh:
                         j[i] = idx
