@@ -10,3 +10,5 @@ Implentation of [Multi Context Attention Mechanism](https://arxiv.org/abs/1702.0
 见[FashionAI全球挑战赛——服饰关键点定位](https://tianchi.aliyun.com/competition/introduction.htm?spm=5176.100066.0.0.4939d780MlsHSQ&raceId=231648)
 ## Hourglass model
 模型源码参考自[wbenbihi/hourglasstensorlfow](https://github.com/wbenbihi/hourglasstensorlfow)
+## version 2.0
+5种类别分开训练，loss函数改为MSE
