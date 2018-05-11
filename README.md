@@ -12,3 +12,5 @@ Implentation of [Multi Context Attention Mechanism](https://arxiv.org/abs/1702.0
 模型源码参考自[wbenbihi/hourglasstensorlfow](https://github.com/wbenbihi/hourglasstensorlfow)
 ## version 2.0
 5种类别分开训练，loss函数改为MSE
+## 最终结果
+分开训练后初赛成绩NE=14%
